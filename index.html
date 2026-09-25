@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dual Axis CRM</title>
+  <meta name="description" content="Lead CRM for Instagram message ads, Meta Ads and wedding service businesses." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <section id="loginView" class="auth-shell hidden">
+    <div class="auth-card">
+      <div class="brand-mark">DA</div>
+      <p class="eyebrow">DUAL AXIS MEDIA</p>
+      <h1>Lead CRM</h1>
+      <p class="muted">Manage Instagram enquiries, follow-ups, bookings and Meta lead quality in one place.</p>
+      <form id="loginForm" class="stack">
+        <label>Email<input id="loginEmail" type="email" required autocomplete="email" /></label>
+        <label>Password<input id="loginPassword" type="password" required autocomplete="current-password" /></label>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+      <div class="demo-note">Demo mode works without Supabase. Add your Supabase keys in <code>supabase-config.js</code> for shared client access.</div>
+    </div>
+  </section>
+
+  <section id="appView" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark small">DA</div>
+        <div><strong>Dual Axis</strong><span>CRM</span></div>
+      </div>
+      <nav>
+        <button class="nav-link active" data-view="dashboard">Dashboard</button>
+        <button class="nav-link" data-view="leads">Leads</button>
+        <button class="nav-link" data-view="followups">Follow-ups</button>
+        <button class="nav-link" data-view="reports">Reports</button>
+        <button class="nav-link" data-view="meta">Meta</button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="mode-pill" id="modePill">Demo mode</div>
+        <button id="logoutBtn" class="text-btn">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">CLIENT CRM</p>
+          <h2 id="pageTitle">Dashboard</h2>
+        </div>
+        <div class="top-actions">
+          <select id="clientFilter" class="select compact" aria-label="Client filter"></select>
+          <button id="addLeadBtn" class="btn primary">+ Add lead</button>
+        </div>
+      </header>
+
+      <div id="dashboardView" class="view">
+        <section class="metrics-grid">
+          <article class="metric-card"><span>Total leads</span><strong id="metricLeads">0</strong><small>All captured leads</small></article>
+          <article class="metric-card"><span>Qualified</span><strong id="metricQualified">0</strong><small>Sales-qualified leads</small></article>
+          <article class="metric-card"><span>Bookings</span><strong id="metricBookings">0</strong><small>Won opportunities</small></article>
+          <article class="metric-card"><span>Revenue</span><strong id="metricRevenue">₹0</strong><small>Booked value</small></article>
+        </section>
+        <section class="content-grid">
+          <article class="panel">
+            <div class="panel-head"><div><h3>Pipeline</h3><p>Where your leads are today.</p></div><button class="text-btn" data-view-jump="leads">View all</button></div>
+            <div id="pipeline" class="pipeline"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h3>Today’s follow-ups</h3><p>Calls and messages that need attention.</p></div><button class="text-btn" data-view-jump="followups">Open</button></div>
+            <div id="todayFollowups" class="list"></div>
+          </article>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><h3>Recent leads</h3><p>Newest CRM activity.</p></div></div>
+          <div id="recentLeads" class="table-wrap"></div>
+        </section>
+      </div>
+
+      <div id="leadsView" class="view hidden">
+        <section class="panel">
+          <div class="panel-head wrap"><div><h3>Lead database</h3><p>Track the full customer journey from Meta lead to booking.</p></div><div class="filters"><input id="leadSearch" class="search" placeholder="Search name, phone, location…"/><select id="statusFilter" class="select"><option value="all">All statuses</option><option>New</option><option>Contacted</option><option>Qualified</option><option>Meeting</option><option>Won</option><option>Lost</option></select></div></div>
+          <div id="leadsTable" class="table-wrap"></div>
+        </section>
+      </div>
+
+      <div id="followupsView" class="view hidden">
+        <section class="panel">
+          <div class="panel-head"><div><h3>Follow-up queue</h3><p>Never lose track of a serious enquiry.</p></div><button id="todayBtn" class="btn secondary">Today</button></div>
+          <div id="followupsList" class="followups"></div>
+        </section>
+      </div>
+
+      <div id="reportsView" class="view hidden">
+        <section class="metrics-grid two">
+          <article class="metric-card"><span>Average deal value</span><strong id="avgDeal">₹0</strong><small>Won bookings only</small></article>
+          <article class="metric-card"><span>Qualification rate</span><strong id="qualRate">0%</strong><small>Qualified ÷ leads</small></article>
+          <article class="metric-card"><span>Booking rate</span><strong id="bookingRate">0%</strong><small>Won ÷ leads</small></article>
+          <article class="metric-card"><span>Meta-tagged leads</span><strong id="metaTagged">0</strong><small>Leads with Meta Lead ID</small></article>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><h3>Meta feedback readiness</h3><p>CRM data quality for Meta's CRM conversion pipeline.</p></div><button class="btn secondary" data-view-jump="meta">Open Meta</button></div>
+          <div class="readiness">
+            <div><span>Meta Lead ID captured</span><strong id="readyMetaId">0%</strong></div>
+            <div><span>Qualified status tracked</span><strong id="readyQualified">0%</strong></div>
+            <div><span>Booking value tracked</span><strong id="readyValue">0%</strong></div>
+            <div><span>Events sent</span><strong id="readyEvents">0</strong></div>
+          </div>
+          <div class="callout"><strong>How this works:</strong> when a Meta-sourced lead moves through your CRM, the server-side integration can send that stage back to Meta using the stored Meta Lead ID. The access token stays on the server.</div>
+        </section>
+      </div>
+
+      <div id="metaView" class="view hidden">
+        <section class="metrics-grid two">
+          <article class="metric-card"><span>Meta-tagged leads</span><strong id="metaPageTagged">0</strong><small>Leads with a Meta Lead ID</small></article>
+          <article class="metric-card"><span>Events sent</span><strong id="metaSent">0</strong><small>CRM events accepted by the integration</small></article>
+          <article class="metric-card"><span>Queued / failed</span><strong id="metaPending">0</strong><small>Needs retry or connection setup</small></article>
+          <article class="metric-card"><span>Last sync</span><strong id="metaLastSync">—</strong><small>Most recent server attempt</small></article>
+        </section>
+
+        <section class="content-grid">
+          <article class="panel">
+            <div class="panel-head"><div><h3>Client Meta connection</h3><p>Dataset ID is safe to store in the CRM. Keep the access token in Supabase secrets.</p></div></div>
+            <div class="form-grid meta-setup-grid">
+              <label>Client<select id="metaClientSelect"></select></label>
+              <label>Dataset ID<input id="metaDatasetId" placeholder="Meta dataset ID" /></label>
+              <label>Source name<input id="metaSourceName" placeholder="Oviegraphy CRM" /></label>
+              <label class="toggle-label">Enabled<input id="metaEnabled" type="checkbox" checked /></label>
+            </div>
+            <div class="dialog-actions"><button id="saveMetaConnectionBtn" class="btn primary">Save connection</button></div>
+            <div id="metaConnectionStatus" class="setup-status"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head"><div><h3>Stage mapping</h3><p>These names become your CRM funnel event labels.</p></div></div>
+            <div class="mapping-list">
+              <div><span>New</span><strong>lead</strong></div>
+              <div><span>Contacted</span><strong>contacted</strong></div>
+              <div><span>Qualified</span><strong>qualified</strong></div>
+              <div><span>Meeting</span><strong>meeting</strong></div>
+              <div><span>Won</span><strong>converted</strong></div>
+              <div><span>Lost</span><strong>lost</strong></div>
+            </div>
+            <div class="callout compact-callout">The exact optimization stage is configured in Meta after the CRM event stream is verified.</div>
+          </article>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><div><h3>CRM → Meta event log</h3><p>Every manual or automatic sync attempt is recorded here.</p></div><button id="syncAllBtn" class="btn secondary">Sync pending leads</button></div>
+          <div id="metaEventsTable" class="table-wrap"></div>
+        </section>
+
+        <section id="phase3InstagramPanel" class="panel">
+          <div class="panel-head"><div><p class="eyebrow">PRIMARY SOURCE</p><h3>Instagram Messaging → CRM</h3><p>Connect each client's Instagram professional account. New inbound DMs can create or update the client lead automatically.</p></div><button id="phase3IgRefreshBtn" class="btn secondary">Refresh</button></div>
+          <div class="metrics-grid three">
+            <article class="metric-card"><span>Instagram messages</span><strong id="phase3IgTotal">0</strong><small>Inbound message events received</small></article>
+            <article class="metric-card"><span>Ad-attributed</span><strong id="phase3IgAttributed">0</strong><small>Events with Meta ad referral data</small></article>
+            <article class="metric-card"><span>Unmapped</span><strong id="phase3IgUnmapped">0</strong><small>Needs account → client mapping</small></article>
+          </div>
+          <div class="webhook-box">
+            <div><span class="meta">Instagram webhook URL</span><code id="phase3IgWebhookUrl">Not connected — add Supabase URL first</code></div>
+            <button id="phase3IgCopyWebhook" class="mini-btn">Copy</button>
+          </div>
+          <div class="callout compact-callout"><strong>Important:</strong> Meta can attach referral/ad information to the message that starts the conversation. Later messages may not repeat that referral, so this CRM saves the attribution on the lead as soon as it arrives.</div>
+          <div class="panel-subhead"><strong>Instagram account mapping</strong><span class="meta">Each Instagram account is assigned to one client organization.</span></div>
+          <div class="form-grid meta-setup-grid">
+            <label>Client<select id="phase3IgClient"></select></label>
+            <label>Instagram Account ID<input id="phase3IgAccountId" placeholder="Instagram professional account ID" /></label>
+            <label>Instagram username<input id="phase3IgUsername" placeholder="@clientinstagram" /></label>
+            <label>Facebook Page ID<input id="phase3IgPageId" placeholder="Optional Page ID" /></label>
+            <label>Page name<input id="phase3IgPageName" placeholder="Optional" /></label>
+            <label class="toggle-label">Enabled<input id="phase3IgEnabled" type="checkbox" checked /></label>
+          </div>
+          <div class="dialog-actions"><button id="phase3IgSave" class="btn primary">Save Instagram connection</button></div>
+          <div id="phase3IgTable" class="table-wrap"></div>
+          <div class="panel-subhead"><strong>Inbound Instagram message log</strong><span class="meta">Messages are deduplicated by the Meta message/event ID and linked to the client lead.</span></div>
+          <div id="phase3IgEventsTable" class="table-wrap"></div>
+        </section>
+
+        <section id="phase3MetaPanel" class="panel">
+          <div class="panel-head"><div><p class="eyebrow">OPTIONAL SOURCE</p><h3>Meta Instant Forms → CRM</h3><p>Keep this for clients who also run Instant Form campaigns. It is no longer the primary lead source for Dual Axis.</p></div><button id="phase3RefreshBtn" class="btn secondary">Refresh</button></div>
+          <div class="webhook-box">
+            <div><span class="meta">Webhook URL</span><code id="phase3WebhookUrl">Not connected — add Supabase URL first</code></div>
+            <button id="phase3CopyWebhook" class="mini-btn">Copy</button>
+          </div>
+
+          <div class="panel-subhead"><strong>Client mapping</strong><span class="meta">Page ID + optional Form ID decide which client receives a lead.</span></div>
+          <div class="form-grid meta-setup-grid phase3-source-grid">
+            <label>Client<select id="phase3SourceClient"></select></label>
+            <label>Meta Page ID<input id="phase3PageId" placeholder="123456789012345" /></label>
+            <label>Meta Form ID <span class="meta-inline">optional for whole Page</span><input id="phase3FormId" placeholder="987654321098765" /></label>
+            <label>Page name<input id="phase3PageName" placeholder="Oviegraphy" /></label>
+            <label>Form name<input id="phase3FormName" placeholder="Wedding Leads" /></label>
+            <label class="toggle-label">Enabled<input id="phase3SourceEnabled" type="checkbox" checked /></label>
+          </div>
+          <div class="dialog-actions"><button id="phase3SaveSource" class="btn primary">Save mapping</button></div>
+          <div id="phase3SourceTable" class="table-wrap"></div>
+
+          <div class="panel-subhead"><strong>Backfill existing Meta leads</strong><span class="meta">Use this after connecting a form to import earlier submissions.</span></div>
+          <div class="form-grid meta-setup-grid">
+            <label>Form ID <input id="phase3BackfillFormId" placeholder="Leave blank for all mapped forms" /></label>
+            <label>Since <input id="phase3BackfillSince" type="date" /></label>
+            <label>Until <input id="phase3BackfillUntil" type="date" /></label>
+          </div>
+          <div class="dialog-actions"><button id="phase3BackfillBtn" class="btn secondary">Run backfill</button></div>
+          <div id="phase3BackfillStatus" class="setup-status"></div>
+
+          <div class="panel-subhead"><strong>Inbound Meta lead log</strong><span class="meta">Webhook and backfill attempts are recorded for troubleshooting.</span></div>
+          <div id="phase3ImportsTable" class="table-wrap"></div>
+        </section>
+      </div>
+    </main>
+  </section>
+
+  <dialog id="leadDialog">
+    <form id="leadForm" method="dialog" class="dialog-card">
+      <div class="panel-head"><div><p class="eyebrow">CRM</p><h3 id="dialogTitle">Add lead</h3></div><button type="button" class="icon-btn" id="closeDialog">×</button></div>
+      <input type="hidden" id="leadId" />
+      <div class="form-grid">
+        <label>Name*<input id="name" required /></label>
+        <label>Phone*<input id="phone" required /></label>
+        <label>Email<input id="email" type="email" placeholder="client@email.com" /></label>
+        <label>Client / Business<select id="clientName"><option value="">Select client</option></select></label>
+        <label>Service<select id="service"><option>Wedding Photography</option><option>Wedding Films</option><option>Engagement</option><option>Makeup</option><option>Other</option></select></label>
+        <label>Wedding date<input id="weddingDate" type="date" /></label>
+        <label>Location<input id="location" /></label>
+        <label>Budget<input id="budget" type="number" min="0" step="1000" placeholder="75000" /></label>
+        <label>Status<select id="status"><option>New</option><option>Contacted</option><option>Qualified</option><option>Meeting</option><option>Won</option><option>Lost</option></select></label>
+        <label>Lead quality<select id="quality"><option>Unknown</option><option>Good</option><option>Bad</option></select></label>
+        <label>Follow-up date<input id="followupDate" type="date" /></label>
+        <label>Source<select id="source"><option>Instagram Message Ad</option><option>Instagram</option><option>Meta Ads</option><option>WhatsApp</option><option>Referral</option><option>Website</option><option>Other</option></select></label>
+        <label>Meta Lead ID<input id="metaLeadId" placeholder="Forms only — Instagram uses IGSID" /></label>
+        <label>Instagram user ID<input id="metaIgUserId" placeholder="Auto-filled from Instagram webhook" /></label>
+        <label>Instagram account ID<input id="metaIgAccountId" placeholder="Instagram professional account ID" /></label>
+        <label>Instagram username<input id="instagramUsername" placeholder="@username" /></label>
+        <label class="full">Notes<textarea id="notes" rows="4" placeholder="Call notes, requirements, objections, next step…"></textarea></label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="btn secondary" id="cancelBtn">Cancel</button><button class="btn primary" type="submit">Save lead</button></div>
+    </form>
+  </dialog>
+
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script src="phase3.js"></script>
+</body>
+</html>

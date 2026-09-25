@@ -40,8 +40,17 @@ function saveDemoMeta(data){localStorage.setItem(DEMO_META_KEY,JSON.stringify(da
 async function getLiveContext(){
   const {data:profile,error:pErr}=await sb.from('profiles').select('user_id,org_id,role,full_name').eq('user_id',currentUser.id).single();
   if(pErr) throw pErr; currentProfile=profile;
-  const {data:orgs,error:oErr}=await sb.from('organizations').select('id,name').order('name');
+  const {data:orgs,error:oErr}=await sb.from('organizations').select('id,name,active,contact_name,contact_email,instagram_username,created_at').order('name');
   if(oErr) throw oErr; organizations=orgs||[];
+  if(currentProfile?.role==='client' && currentProfile.org_id){
+    const ownOrg=organizations.find(o=>o.id===currentProfile.org_id);
+    if(ownOrg && ownOrg.active===false){
+      await sb.auth.signOut();
+      currentUser=null;
+      currentProfile=null;
+      throw new Error('This client account is inactive. Please contact Dual Axis Media.');
+    }
+  }
   await loadMetaConnections();
 }
 async function getLeads(){
@@ -96,7 +105,7 @@ function visibleRows(all){
   const scoped=filters.client==='all'?all:all.filter(x=>x.org_id===filters.client||x.client_name===filters.client);
   return {scoped,searched:scoped.filter(x=>{const q=filters.search.toLowerCase();return !q||[x.name,x.phone,x.location,x.client_name,x.service].some(v=>String(v||'').toLowerCase().includes(q))}).filter(x=>filters.status==='all'||x.status===filters.status)};
 }
-function clientList(){return demoMode?demoOrgs:organizations}
+function clientList(){return (demoMode?demoOrgs:organizations).filter(o=>o.active!==false)}
 function fillClientOptions(selected=''){
   const sel=document.getElementById('clientName');const list=clientList();sel.innerHTML='<option value="">Select client</option>'+list.map(o=>`<option value="${escapeAttr(o.id)}">${escapeHtml(o.name)}</option>`).join('');if(selected)sel.value=selected;if(demoMode&&!selected&&filters.client!=='all')sel.value=filters.client;
 }
@@ -165,6 +174,6 @@ function bind(){
   document.getElementById('logoutBtn').addEventListener('click',async()=>{if(!demoMode&&sb)await sb.auth.signOut();currentUser=null;showApp(false)});
   document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();if(demoMode){showApp(true);return}const email=document.getElementById('loginEmail').value,password=document.getElementById('loginPassword').value;const {data,error}=await sb.auth.signInWithPassword({email,password});if(error){toast(error.message);return}currentUser=data.user;await getLiveContext();showApp(true)});
 }
-function showApp(show){document.getElementById('appView').classList.toggle('hidden',!show);document.getElementById('loginView').classList.toggle('hidden',show);if(show){document.getElementById('modePill').textContent=demoMode?'Demo mode':(currentProfile?.role==='admin'?'Admin':'Client');render().catch(e=>{console.error(e);toast(e.message)})}}
+function showApp(show){document.getElementById('appView').classList.toggle('hidden',!show);document.getElementById('loginView').classList.toggle('hidden',show);if(window.applyRoleVisibility)window.applyRoleVisibility();if(show){document.getElementById('modePill').textContent=demoMode?'Demo mode':(currentProfile?.role==='admin'?'Admin':'Client');render().catch(e=>{console.error(e);toast(e.message)})}}
 async function init(){bind();if(demoMode)showApp(true);else try{await initLiveSession()}catch(e){console.error(e);showApp(false);toast('Supabase connection error: '+e.message)}}
 init();

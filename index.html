@@ -40,7 +40,8 @@
         <button class="nav-link" data-view="leads">Leads</button>
         <button class="nav-link" data-view="followups">Follow-ups</button>
         <button class="nav-link" data-view="reports">Reports</button>
-        <button class="nav-link" data-view="meta">Meta</button>
+        <button class="nav-link admin-only-nav" data-view="clients">Clients</button>
+        <button class="nav-link admin-only-nav" data-view="meta">Meta</button>
       </nav>
       <div class="sidebar-foot">
         <div class="mode-pill" id="modePill">Demo mode</div>
@@ -94,6 +95,17 @@
         <section class="panel">
           <div class="panel-head"><div><h3>Follow-up queue</h3><p>Never lose track of a serious enquiry.</p></div><button id="todayBtn" class="btn secondary">Today</button></div>
           <div id="followupsList" class="followups"></div>
+        </section>
+      </div>
+
+      <div id="clientsView" class="view hidden admin-only-view">
+        <section class="panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">ADMIN</p><h3>Clients</h3><p>Add, edit and remove client access without touching the database.</p></div>
+            <button id="addClientBtn" class="btn primary">+ Add client</button>
+          </div>
+          <div id="clientAccessNotice" class="callout hidden"></div>
+          <div id="clientsTable" class="table-wrap"></div>
         </section>
       </div>
 
@@ -218,6 +230,21 @@
     </main>
   </section>
 
+  <dialog id="clientDialog">
+    <form id="clientForm" method="dialog" class="dialog-card client-dialog-card">
+      <div class="panel-head"><div><p class="eyebrow">ADMIN</p><h3 id="clientDialogTitle">Add client</h3><p>Create the client workspace and login.</p></div><button type="button" class="icon-btn" id="closeClientDialog">×</button></div>
+      <input type="hidden" id="clientOrgId" />
+      <div class="form-grid">
+        <label>Business / Client name*<input id="clientBusinessName" required placeholder="Pure Pictures & Films" /></label>
+        <label>Contact person<input id="clientContactName" placeholder="Client name" /></label>
+        <label>Login email*<input id="clientContactEmail" type="email" required placeholder="client@email.com" /></label>
+        <label>Instagram username<input id="clientInstagramUsername" placeholder="@purepicturesfilms" /></label>
+      </div>
+      <div id="clientFormHint" class="callout compact-callout">A temporary password will be generated when a new client is created. Share it securely with the client.</div>
+      <div class="dialog-actions"><button type="button" class="btn secondary" id="cancelClientBtn">Cancel</button><button class="btn primary" type="submit">Save client</button></div>
+    </form>
+  </dialog>
+
   <dialog id="leadDialog">
     <form id="leadForm" method="dialog" class="dialog-card">
       <div class="panel-head"><div><p class="eyebrow">CRM</p><h3 id="dialogTitle">Add lead</h3></div><button type="button" class="icon-btn" id="closeDialog">×</button></div>
@@ -248,5 +275,6 @@
   <script src="supabase-config.js"></script>
   <script src="app.js"></script>
   <script src="phase3.js"></script>
+  <script src="clients.js"></script>
 </body>
 </html>

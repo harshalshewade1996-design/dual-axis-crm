@@ -9,3 +9,5 @@ The original Instagram webhook snapshot may replace an existing ad lead's source
 Keep all access tokens, app secrets, verify tokens, and service-role keys in Supabase secrets. This repository contains only source that reads secrets by name. A single `META_ACCESS_TOKEN` must have access to each configured client's dataset; a token generated for one dataset does not automatically authorize other datasets.
 
 Next: export or compare the live SQL definitions and deployed function versions, then check RLS, grants, and organization checks for every table and function. Verify a real eligible Meta event in Events Manager before relying on conversion feedback.
+
+Run the read-only `audit/organization_access.sql` query to inspect live RLS, policies, view access, and the active-organization function. Its output still needs review; adding this query does not prove the live project is safe.

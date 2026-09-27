@@ -1,0 +1,17 @@
+[functions.meta-crm-event]
+verify_jwt = true
+
+[functions.meta-lead-webhook]
+verify_jwt = false
+
+[functions.meta-lead-backfill]
+verify_jwt = true
+
+[functions.instagram-message-webhook]
+verify_jwt = false
+
+[functions.meta-business-messaging-event]
+verify_jwt = true
+
+[functions.admin-manage-client]
+verify_jwt = true

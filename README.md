@@ -1,5 +1,8 @@
 # Dual Axis Media — CRM Phase 2
 
+Backend source and historical SQL are in [`supabase/`](supabase/README.md).
+Read its deployment notes before applying any database migrations.
+
 A lightweight CRM for wedding lead generation with a Meta CRM feedback layer.
 
 ## What Phase 2 adds

@@ -134,7 +134,15 @@ async function importMessage(instagramAccountId: string, event: any, payload: an
     text,
   }));
 
-  let connection = await findConnection(instagramAccountId);
+  const connection = await findConnection(instagramAccountId);
+  if (connection) {
+    const { data: organization, error } = await admin.from('organizations')
+      .select('active').eq('id', connection.org_id).maybeSingle();
+    if (error) throw error;
+    if (organization?.active !== true) {
+      return { ignored: true, reason: 'client_account_inactive' };
+    }
+  }
   const mappedOrgId = connection?.org_id || null;
   const eventBase = {
     org_id: mappedOrgId,
@@ -167,7 +175,7 @@ async function importMessage(instagramAccountId: string, event: any, payload: an
 
   const { data: existing, error: lookupError } = await admin
     .from('leads')
-    .select('id,name,phone,status,quality,budget,notes,meta_messaging_referral')
+    .select('id,name,phone,source,meta_ad_id,meta_ad_title,status,quality,budget,notes,meta_messaging_referral')
     .eq('org_id', connection.org_id)
     .eq('meta_ig_user_id', senderId)
     .maybeSingle();
@@ -183,14 +191,14 @@ async function importMessage(instagramAccountId: string, event: any, payload: an
     org_id: connection.org_id,
     name: existing?.name && existing.name !== 'Instagram Lead' ? existing.name : defaultName,
     phone: existing?.phone || 'Not provided',
-    source: leadSource,
+    source: (source === 'ADS' || adId) ? leadSource : (existing?.source || leadSource),
     meta_ig_user_id: senderId,
     meta_instagram_account_id: instagramAccountId,
     meta_conversation_id: conversationId || null,
     meta_message_id: messageId || null,
     instagram_username: username || null,
-    meta_ad_id: adId || null,
-    meta_ad_title: adTitle || null,
+    meta_ad_id: adId || existing?.meta_ad_id || null,
+    meta_ad_title: adTitle || (adId && adId !== existing?.meta_ad_id ? null : existing?.meta_ad_title) || null,
     last_inbound_message: text || null,
     last_inbound_at: timestamp,
     meta_messaging_referral: referralMerge,

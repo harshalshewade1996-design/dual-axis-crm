@@ -14,8 +14,11 @@ Required Supabase secrets:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `META_APP_SECRET`
 - `META_WEBHOOK_VERIFY_TOKEN`
-- `META_ACCESS_TOKEN` (reserved for future Meta profile/conversion calls)
 - `META_API_VERSION` (current approved Graph API version; default `v26.0` in this package)
+
+Optional for automatic sender names:
+
+- `META_INSTAGRAM_ACCESS_TOKEN`: Page access token authorized to read Instagram messaging user profiles for the connected Instagram account. Keep it in Supabase secrets, never in frontend code. The Meta app needs the relevant Instagram profile permission and the Page token holder needs the Page's moderation task. Without this secret, messages still import, using a webhook supplied name or username when available, otherwise `Instagram Lead`. A failed or timed out profile lookup also imports the message. For multiple clients, use a per-connection token flow instead of sharing one global token across accounts.
 
 Webhook URL after deployment:
 

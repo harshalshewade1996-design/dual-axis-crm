@@ -8,7 +8,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const metaAppSecret = Deno.env.get('META_APP_SECRET') || '';
 const verifyToken = Deno.env.get('META_WEBHOOK_VERIFY_TOKEN') || '';
-const metaToken = Deno.env.get('META_ACCESS_TOKEN') || '';
+const instagramAccessToken = Deno.env.get('META_INSTAGRAM_ACCESS_TOKEN') || '';
 const metaApiVersion = Deno.env.get('META_API_VERSION') || 'v26.0';
 
 const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
@@ -79,13 +79,26 @@ function extractConversationId(event: any) {
   );
 }
 
-function extractSenderName(event: any) {
-  return first(
-    event?.sender?.name,
-    event?.sender?.username,
-    event?.username,
-    event?.user?.username,
-  );
+async function senderProfile(senderId: string, event: any) {
+  const webhookName = first(event?.sender?.name);
+  const webhookUsername = first(event?.sender?.username, event?.username, event?.user?.username);
+  if (!instagramAccessToken) return { name: webhookName, username: webhookUsername };
+
+  try {
+    const url = `https://graph.facebook.com/${metaApiVersion}/${encodeURIComponent(senderId)}?fields=name,username`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${instagramAccessToken}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) return { name: webhookName, username: webhookUsername };
+    const profile = await response.json();
+    return {
+      name: first(profile?.name, webhookName),
+      username: first(profile?.username, webhookUsername),
+    };
+  } catch {
+    return { name: webhookName, username: webhookUsername };
+  }
 }
 
 async function findConnection(instagramAccountId: string) {
@@ -169,17 +182,24 @@ async function importMessage(instagramAccountId: string, event: any, payload: an
   const logged = await upsertEvent(eventBase);
   if (!connection) return { ok: true, imported: false, unmapped: true, event_id: logged.id, event_key: eventKey };
 
-  const username = extractSenderName(event);
-  const defaultName = username ? `Instagram @${username.replace(/^@/, '')}` : 'Instagram Lead';
   const leadSource = (source === 'ADS' || Boolean(adId)) ? 'Instagram Message Ad' : 'Instagram';
 
   const { data: existing, error: lookupError } = await admin
     .from('leads')
-    .select('id,name,phone,source,meta_ad_id,meta_ad_title,status,quality,budget,notes,meta_messaging_referral')
+    .select('id,name,phone,source,instagram_username,meta_ad_id,meta_ad_title,status,quality,budget,notes,meta_messaging_referral')
     .eq('org_id', connection.org_id)
     .eq('meta_ig_user_id', senderId)
     .maybeSingle();
   if (lookupError) throw lookupError;
+
+  // A manually edited name wins. A generated placeholder can be improved later.
+  const generatedName = existing?.instagram_username
+    ? `Instagram @${existing.instagram_username.replace(/^@/, '')}` : '';
+  const canImproveName = !existing?.name || existing.name === 'Instagram Lead' || existing.name === generatedName;
+  const profile = canImproveName || !existing?.instagram_username
+    ? await senderProfile(senderId, event) : { name: '', username: '' };
+  const username = first(profile.username, existing?.instagram_username);
+  const defaultName = profile.name || (username ? `Instagram @${username.replace(/^@/, '')}` : 'Instagram Lead');
 
   const referralMerge = {
     ...(existing?.meta_messaging_referral || {}),
@@ -189,7 +209,7 @@ async function importMessage(instagramAccountId: string, event: any, payload: an
 
   const incoming = {
     org_id: connection.org_id,
-    name: existing?.name && existing.name !== 'Instagram Lead' ? existing.name : defaultName,
+    name: canImproveName ? defaultName : existing.name,
     phone: existing?.phone || 'Not provided',
     source: (source === 'ADS' || adId) ? leadSource : (existing?.source || leadSource),
     meta_ig_user_id: senderId,

@@ -62,6 +62,11 @@ Phase 3 adds automatic Instagram Message Ads + Meta Ads → CRM import, Page/for
 
 Apply `supabase/updates/lead_pagination.sql` before deploying this frontend. It installs `crm_lead_page` with SECURITY INVOKER, authenticated-only EXECUTE, and paging indexes; existing table RLS controls every result and aggregate. The update is idempotent and was applied to production on 2026-09-30.
 
-The lead list and follow-up queue use 25/50/100 rows per page. Search and status filters run on the server; changing filters resets the page. Dashboard and pipeline totals cover all accessible leads for the selected client. Existing revenue semantics (Won lead budgets) are unchanged. CRM Meta event totals are database aggregates; the event log still shows its latest 150 entries. Instagram and Instant Form import logs still have their existing limits.
+The lead list and follow-up queue use 25/50/100 rows per page. Search and status filters run on the server; changing filters resets the page. Dashboard and pipeline totals cover all accessible leads for the selected client. Apply the booking-value update below to report confirmed Won booking amounts. CRM Meta event totals are database aggregates; the event log still shows its latest 150 entries. Instagram and Instant Form import logs still have their existing limits.
 
 Run `node tests/pagination.test.mjs` for pagination, filtering, deletion and stale-request checks. Database validation used 1,105 uncommitted fixture leads and rolled back the transaction.
+
+## Actual booking value
+Apply `supabase/updates/booking_value.sql` before deploying the frontend and the two feedback functions. `booking_value` is nullable, nonnegative numeric(12,2), in INR. It is the agreed total package amount, not the budget or deposit. Existing values are not backfilled from budgets. Revenue sums booking_value for Won leads; average deal value divides by Won leads with a recorded amount (zero is known). Reports show missing Won amounts. Editing an amount does not automatically resend a conversion; historical sent events remain unchanged. Future feedback uses booking_value, never budget.
+
+Validation: `node tests/booking-value.test.mjs` and `node tests/pagination.test.mjs`.

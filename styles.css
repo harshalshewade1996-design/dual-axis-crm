@@ -16,3 +16,5 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .danger-btn{color:#9d3131}.danger-btn:hover{border-color:#d2aaa1;color:#8b2626}.client-dialog-card{min-width:min(760px,92vw)}
 .client-table .row-actions{min-width:150px}
 .admin-only-nav.hidden{display:none!important}
+
+.pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 0}.page-size{display:flex;align-items:center;gap:10px;margin-bottom:12px}.page-button:disabled{opacity:.45;cursor:default}

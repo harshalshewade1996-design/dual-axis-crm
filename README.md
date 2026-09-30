@@ -57,3 +57,11 @@ This implementation is based on the current public Meta CRM conversion event pat
 ## Phase 3
 
 Phase 3 adds automatic Instagram Message Ads + Meta Ads → CRM import, Page/form-to-client mapping, Meta attribution IDs, inbound import logs, and an admin-only backfill/reconciliation function. See `PHASE3_SETUP.md`.
+
+### Lead pagination
+
+Apply `supabase/updates/lead_pagination.sql` before deploying this frontend. It installs `crm_lead_page` with SECURITY INVOKER, authenticated-only EXECUTE, and paging indexes; existing table RLS controls every result and aggregate. The update is idempotent and was applied to production on 2026-09-30.
+
+The lead list and follow-up queue use 25/50/100 rows per page. Search and status filters run on the server; changing filters resets the page. Dashboard and pipeline totals cover all accessible leads for the selected client. Existing revenue semantics (Won lead budgets) are unchanged. CRM Meta event totals are database aggregates; the event log still shows its latest 150 entries. Instagram and Instant Form import logs still have their existing limits.
+
+Run `node tests/pagination.test.mjs` for pagination, filtering, deletion and stale-request checks. Database validation used 1,105 uncommitted fixture leads and rolled back the transaction.

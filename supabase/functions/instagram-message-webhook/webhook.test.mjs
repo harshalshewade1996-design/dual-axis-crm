@@ -43,7 +43,7 @@ vm.runInNewContext(source, {
   Deno: { env: { get: key => ({ META_APP_SECRET: 'test-secret', META_INSTAGRAM_ACCESS_TOKEN: 'test-profile-token' })[key] || '' }, serve: fn => { handler = fn; } },
   fetch: async (url, options) => {
     profileRequests++;
-    assert.match(url, /\/ig-user\?fields=name,username$/);
+    assert.match(url, /^https:\/\/graph\.instagram\.com\/v\d+\.\d+\/ig-user\?fields=name,username$/);
     assert.equal(options.headers.Authorization, 'Bearer test-profile-token');
     return profile ? Response.json(profile) : Response.json({ error: 'Unavailable' }, { status: 403 });
   },

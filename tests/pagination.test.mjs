@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const elements=new Map();
+const document={getElementById(id){if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',value:'',setAttribute(){},classList:{toggle(){},add(){},remove(){}}});return elements.get(id);}};
+const store=new Map();
+const context=vm.createContext({window:{},document,localStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)},console,setTimeout,clearTimeout,Intl,Date,Map,crypto:{randomUUID:()=> 'new-id'}});
+vm.runInContext(fs.readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/\ninit\(\);\s*$/,''),context);
+const run=s=>vm.runInContext(s,context);
+await run(`saveDemo(Array.from({length:1205},(_,i)=>({id:String(i),org_id:i<1105?'demo-1':'demo-2',name:'Lead '+i,phone:'',client_name:i<1105?'Oviegraphy':'Atulya Katha',status:i%2?'Won':'New',budget:10,meta_lead_id:'meta-'+i,followup_date:'2026-10-01'})));`);
+let page=await run('getLeadPage({page:1})');assert.equal(page.count,1205);assert.equal(page.rows.length,25);assert.equal(page.summary.total,1205);
+page=await run('getLeadPage({page:49})');assert.equal(page.rows.length,5);
+page=await run('getLeadPage({page:999})');assert.equal(page.page,49);
+page=await run("filters.client='demo-1'; getLeadPage({page:1,status:'Won'})");assert.equal(page.count,552);assert.equal(page.summary.total,1105);assert.equal(page.summary.won,552);
+page=await run("getLeadPage({search:'Lead 1104',page:5})");assert.equal(page.count,1);assert.equal(page.page,1);
+await run("filters.client='all'; render()");assert.equal(elements.get('metricLeads').textContent,1205);assert.match(elements.get('leadPager').innerHTML,/1–25 of 1205/);
+// An older request must not overwrite a newer filter result.
+await run(`demoMode=false; let oldResolvers=[]; let requests=0; const response=(total)=>({data:{rows:[],count:total,page:1,size:25,summary:{total,qualified:0,won:0,revenue:0,meta:0,value_tracked:0,stages:{},sent:0,pending:0}}}); sb={rpc:async(name,args)=>{if(name!=='crm_lead_page'||args.p_size>100)throw Error('Invalid page request');requests++;if(requests<=4)return new Promise(resolve=>oldResolvers.push(()=>resolve(response(999))));return response(0);},from:()=>({select(){return this},order(){return this},limit(){return Promise.resolve({data:[]})}})};`);
+const oldRender=run('render()');
+await run('render()');
+await run('oldResolvers.forEach(resolve=>resolve())');
+await oldRender;
+assert.equal(elements.get('metricLeads').textContent,0);
+assert.match(elements.get('leadPager').innerHTML,/0–0 of 0/);
+// Deleting the only last-page lead must clamp back to the preceding page.
+await run(`demoMode=true; filters.client='all'; saveDemo(Array.from({length:26},(_,i)=>({id:String(i),org_id:'demo-1',name:'Lead '+i,status:'New'})));`);
+page=await run('getLeadPage({page:2})');assert.equal(page.rows.length,1);
+await run("saveDemo(loadDemo().filter(x=>x.id!=='25'))");
+page=await run('getLeadPage({page:2})');assert.equal(page.page,1);assert.equal(page.rows.length,25);
+console.log('Pagination: 1205 leads, totals, client/status/search filters, page bounds, stale response protection, deletion and bounded RPC requests passed');

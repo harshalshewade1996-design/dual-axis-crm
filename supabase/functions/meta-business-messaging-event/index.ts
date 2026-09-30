@@ -36,7 +36,7 @@ async function stableEventId(leadId: string, eventName: string, updatedAt: strin
 
 async function processLead(leadId: string) {
   const { data: lead, error } = await admin.from('leads').select(
-    'id,org_id,name,phone,email,source,status,budget,meta_ig_user_id,meta_instagram_account_id,last_inbound_at,updated_at'
+    'id,org_id,name,phone,email,source,status,booking_value,meta_ig_user_id,meta_instagram_account_id,last_inbound_at,updated_at'
   ).eq('id', leadId).single();
   if (error || !lead) throw new Error('Lead not found');
 
@@ -62,7 +62,7 @@ async function processLead(leadId: string) {
   const eventTimeSource = lead.updated_at || lead.last_inbound_at || new Date().toISOString();
   const eventTime = Math.floor(new Date(eventTimeSource).getTime() / 1000);
   const eventId = await stableEventId(lead.id, eventName, eventTimeSource);
-  const value = Number(lead.budget || 0);
+  const value = Number(lead.booking_value || 0);
 
   const { data: existing } = await admin.from('instagram_meta_events')
     .select('id,delivery_status,attempts')

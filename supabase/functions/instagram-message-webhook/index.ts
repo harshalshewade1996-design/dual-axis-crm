@@ -85,7 +85,7 @@ async function senderProfile(senderId: string, event: any) {
   if (!instagramAccessToken) return { name: webhookName, username: webhookUsername };
 
   try {
-    const url = `https://graph.facebook.com/${metaApiVersion}/${encodeURIComponent(senderId)}?fields=name,username`;
+    const url = `https://graph.instagram.com/${metaApiVersion}/${encodeURIComponent(senderId)}?fields=name,username`;
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${instagramAccessToken}` },
       signal: AbortSignal.timeout(3000),

@@ -37,7 +37,7 @@ function cryptoHash(value: string) {
 async function processEvent(leadId: string) {
   const { data: lead, error: leadError } = await admin
     .from('leads')
-    .select('id,org_id,name,source,status,budget,meta_lead_id,updated_at')
+    .select('id,org_id,name,source,status,booking_value,meta_lead_id,updated_at')
     .eq('id', leadId)
     .single();
   if (leadError || !lead) throw new Error('Lead not found');
@@ -61,7 +61,7 @@ async function processEvent(leadId: string) {
   const eventName = eventMap[lead.status];
   const eventTime = Math.floor(new Date(lead.updated_at).getTime() / 1000);
   const eventId = await cryptoHash(`${lead.id}:${lead.status}:${lead.updated_at}`);
-  const value = Number(lead.budget || 0);
+  const value = Number(lead.booking_value || 0);
   const customData: Record<string, unknown> = {
     lead_event_source: connection?.source_name || 'Dual Axis Media CRM',
     event_source: 'crm',

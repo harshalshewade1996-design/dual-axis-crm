@@ -3,12 +3,15 @@
 // No Supabase JWT is required because Meta calls this endpoint directly.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { decryptToken } from '../_shared/instagram_oauth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const metaAppSecret = Deno.env.get('META_APP_SECRET') || '';
 const verifyToken = Deno.env.get('META_WEBHOOK_VERIFY_TOKEN') || '';
 const instagramAccessToken = Deno.env.get('META_INSTAGRAM_ACCESS_TOKEN') || '';
+const legacyInstagramAccountId = Deno.env.get('META_INSTAGRAM_LEGACY_ACCOUNT_ID') || '';
+const tokenEncryptionKey = Deno.env.get('INSTAGRAM_TOKEN_ENCRYPTION_KEY') || '';
 const metaApiVersion = Deno.env.get('META_API_VERSION') || 'v26.0';
 
 const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
@@ -79,15 +82,26 @@ function extractConversationId(event: any) {
   );
 }
 
-async function senderProfile(senderId: string, event: any) {
+async function accountToken(connection: any) {
+  const {data,error}=await admin.from('instagram_authorizations').select('instagram_account_id,token_ciphertext,expires_at').eq('org_id',connection.org_id).maybeSingle();
+  if (error) return ''; // Fail closed; never use a different client's credentials.
+  if (data) {
+    if(data.instagram_account_id!==connection.instagram_account_id || Date.parse(data.expires_at)<=Date.now())return '';
+    try{return await decryptToken(data.token_ciphertext,tokenEncryptionKey,connection.org_id);}catch{return '';}
+  }
+  return connection.instagram_account_id===legacyInstagramAccountId ? instagramAccessToken : '';
+}
+
+async function senderProfile(senderId: string, event: any, connection: any) {
   const webhookName = first(event?.sender?.name);
   const webhookUsername = first(event?.sender?.username, event?.username, event?.user?.username);
-  if (!instagramAccessToken) return { name: webhookName, username: webhookUsername };
+  const accessToken=await accountToken(connection);
+  if (!accessToken) return { name: webhookName, username: webhookUsername };
 
   try {
     const url = `https://graph.instagram.com/${metaApiVersion}/${encodeURIComponent(senderId)}?fields=name,username`;
     const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${instagramAccessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(3000),
     });
     if (!response.ok) return { name: webhookName, username: webhookUsername };
@@ -197,7 +211,7 @@ async function importMessage(instagramAccountId: string, event: any, payload: an
     ? `Instagram @${existing.instagram_username.replace(/^@/, '')}` : '';
   const canImproveName = !existing?.name || existing.name === 'Instagram Lead' || existing.name === generatedName;
   const profile = canImproveName || !existing?.instagram_username
-    ? await senderProfile(senderId, event) : { name: '', username: '' };
+    ? await senderProfile(senderId, event, connection) : { name: '', username: '' };
   const username = first(profile.username, existing?.instagram_username);
   const defaultName = profile.name || (username ? `Instagram @${username.replace(/^@/, '')}` : 'Instagram Lead');
 

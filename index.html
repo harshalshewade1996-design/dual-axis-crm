@@ -184,6 +184,15 @@
           </div>
           <div class="callout compact-callout"><strong>Important:</strong> Meta can attach referral/ad information to the message that starts the conversation. Later messages may not repeat that referral, so this CRM saves the attribution on the lead as soon as it arrives.</div>
           <div class="panel-subhead"><strong>Instagram account mapping</strong><span class="meta">Each Instagram account is assigned to one client organization.</span></div>
+          <div id="igOnboardingPanel" class="callout compact-callout" hidden>
+            <strong>Connect a client's Instagram</strong>
+            <p>Select the client below, create a link, and share it with the account owner. The owner signs in through Instagram. Refresh here to review the username before connecting.</p>
+            <div class="dialog-actions"><button id="igCreateLink" class="btn primary">Create connection link</button><button id="igCheckAuthorization" class="btn secondary">Check authorization</button><button id="igRefreshToken" class="btn secondary" hidden>Refresh authorization</button></div>
+            <label id="igLinkLabel" hidden>Connection link (expires in 30 minutes)<input id="igAuthorizationLink" readonly /></label>
+            <button id="igCopyLink" class="mini-btn" hidden>Copy connection link</button>
+            <p id="igAuthorizationStatus" role="status">Select a client to begin.</p>
+            <button id="igConfirmAccount" class="btn primary" hidden>Confirm account and connect</button>
+          </div>
           <div class="form-grid meta-setup-grid">
             <label>Client<select id="phase3IgClient"></select></label>
             <label>Instagram Account ID<input id="phase3IgAccountId" placeholder="Instagram professional account ID" /></label>
@@ -280,5 +289,6 @@
   <script src="app.js"></script>
   <script src="phase3.js"></script>
   <script src="clients.js"></script>
+  <script src="instagram-onboarding.js"></script>
 </body>
 </html>

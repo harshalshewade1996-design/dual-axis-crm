@@ -15,3 +15,7 @@ verify_jwt = true
 
 [functions.admin-manage-client]
 verify_jwt = true
+
+# GET receives the Instagram OAuth redirect; every POST validates getUser + admin role.
+[functions.instagram-onboarding]
+verify_jwt = false

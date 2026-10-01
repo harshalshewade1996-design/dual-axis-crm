@@ -33,6 +33,7 @@ begin
   perform 1 from public.organizations where id=p_org and active=true for update;
   if not found then raise exception 'Client account inactive'; end if;
   if p_expires<=now() or p_expires>now()+interval '31 minutes' then raise exception 'Invalid link expiry'; end if;
+  if p_state_hash !~ '^[0-9a-f]{64}$' then raise exception 'Invalid state hash'; end if;
   if exists(select 1 from public.instagram_oauth_sessions where org_id=p_org and status='activating' and expires_at>now()) then raise exception 'Activation in progress'; end if;
   update public.instagram_oauth_sessions set status='cancelled',token_ciphertext=null where org_id=p_org and status in ('awaiting','exchanging','authorized','failed');
   -- Clear abandoned encrypted review tokens on each new link; no expired review token is usable.
@@ -48,7 +49,7 @@ returns void language plpgsql security invoker set search_path = '' as $$
 declare s public.instagram_oauth_sessions%rowtype;
 begin
   select * into s from public.instagram_oauth_sessions where id=p_session for update;
-  if not found or s.status<>'activating' or s.expires_at<=now() or s.token_expires_at<=now() or s.token_ciphertext is null then
+  if not found or s.status<>'activating' or s.expires_at<=now() or s.token_expires_at is null or s.token_expires_at<=now() or s.token_ciphertext is null or s.instagram_account_id is null then
     raise exception 'Authorization is not ready';
   end if;
   if not exists(select 1 from public.profiles where user_id=p_actor and role='admin') then raise exception 'Admin required'; end if;

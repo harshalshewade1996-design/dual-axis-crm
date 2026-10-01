@@ -6,7 +6,7 @@ This uses **Instagram API with Instagram Login**, not Facebook Page tokens. The 
 
 ## Deployment
 
-1. Apply `supabase/updates/instagram_onboarding.sql` once. Both encrypted-token tables have RLS enabled, with no grants/policies for public, anon or authenticated. Two transaction functions are SECURITY INVOKER, executable only by service_role. Do not expose token tables to clients or add read policies.
+1. The additive update `supabase/updates/instagram_onboarding.sql` was applied to production on 2026-10-01. Apply it once when reproducing the environment. Both encrypted-token tables have RLS enabled, with no grants/policies for public, anon or authenticated. Two transaction functions are SECURITY INVOKER, executable only by service_role. Do not expose token tables to clients or add read policies.
 2. Set these Edge secrets in Supabase (never in frontend files):
    - `META_INSTAGRAM_APP_ID` and `META_INSTAGRAM_APP_SECRET`: **Instagram** App ID/secret from the existing app's Instagram Login setup; these can differ from the Facebook App ID/secret.
    - `INSTAGRAM_TOKEN_ENCRYPTION_KEY`: a random 32-byte key represented as 64 hexadecimal characters. Keep a secure backup. Changing it requires reconnecting stored accounts or explicitly re-encrypting them first.
@@ -14,7 +14,7 @@ This uses **Instagram API with Instagram Login**, not Facebook Page tokens. The 
    - `CRM_ORIGIN`: `https://harshalshewade1996-design.github.io`
    - `CRM_INSTAGRAM_RETURN_URL`: `https://harshalshewade1996-design.github.io/dual-axis-crm/instagram-connected.html`
    - `META_INSTAGRAM_LEGACY_ACCOUNT_ID`: `17841444533924528` **only if** the existing global `META_INSTAGRAM_ACCESS_TOKEN` still belongs to @dualaxismedia. This scopes the old fallback to its verified account. No other client may use it.
-3. Deploy `instagram-onboarding` with JWT verification off (GET is the external callback; POST still checks user JWT and admin role). Include `_shared/instagram_oauth.ts` in the deployment bundle. Deploy the updated `instagram-message-webhook` with the same shared file.
+3. `instagram-onboarding` version 1 was deployed on 2026-10-01; the live unauthenticated POST returns 401. Deploy `instagram-onboarding` with JWT verification off (GET is the external callback; POST still checks user JWT and admin role). Include `_shared/instagram_oauth.ts` in the deployment bundle. Deploy the updated `instagram-message-webhook` with the same shared file.
 4. In the existing Meta app's Instagram Business Login settings, register the exact redirect URI:
    `https://oydzhtwpeoyfeuesyntd.supabase.co/functions/v1/instagram-onboarding`
 5. Keep the existing signed webhook callback and verify token. Enable the Instagram webhook fields `messages`, `messaging_postbacks`, `messaging_referral`. Account activation subscribes those fields for the authorized account.
@@ -29,4 +29,4 @@ This uses **Instagram API with Instagram Login**, not Facebook Page tokens. The 
 - New links cancel previous pending links and reviews for that client. Expired pending ciphertext is cleared when an admin creates another link. No state/code/token is written to browser localStorage or logged. URLs holding tokens are used only for Meta's server-side token exchange/refresh endpoints and are never returned to the client.
 - Subscription occurs before the database transaction. If the commit fails, no mapping/token is activated, but Meta may retain a subscription. Retrying the confirmed review is safe; unmatched messages remain unmapped. If replacing an account, its old remote subscription remains until removed in Meta; the CRM no longer imports it for this organization.
 
-Tests: `node tests/instagram-onboarding.test.mjs` (Node 24 TypeScript stripping), existing pagination and booking-value tests. Network boundaries are mocked; no real client authorization or conversion is sent by the test.
+Tests: `node tests/instagram-onboarding.test.mjs` (Node 24 TypeScript stripping), `node tests/instagram-onboarding-ui.test.mjs`, existing pagination and booking-value tests. `tests/instagram-onboarding.sql` passed against production inside a rolled-back transaction: credential ACLs, invalidated old links, atomic activation, duplicate account rejection and inactive-client rejection. No test clients, tokens or account mappings were retained. Advisor INFO findings for RLS without policies on the two new tables are intentional: no user read access is allowed ([linter guidance](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)). Existing unrelated mutable-search-path, auth-helper and leaked-password-protection warnings remain outside this change. Network boundaries are mocked; no real client authorization or conversion is sent by the test.

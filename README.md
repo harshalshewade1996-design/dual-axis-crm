@@ -70,3 +70,6 @@ Run `node tests/pagination.test.mjs` for pagination, filtering, deletion and sta
 Apply `supabase/updates/booking_value.sql` before deploying the frontend and the two feedback functions. `booking_value` is nullable, nonnegative numeric(12,2), in INR. It is the agreed total package amount, not the budget or deposit. Existing values are not backfilled from budgets. Revenue sums booking_value for Won leads; average deal value divides by Won leads with a recorded amount (zero is known). Reports show missing Won amounts. Editing an amount does not automatically resend a conversion; historical sent events remain unchanged. Future feedback uses booking_value, never budget.
 
 Validation: `node tests/booking-value.test.mjs` and `node tests/pagination.test.mjs`.
+# Client Instagram authorization
+
+Admin-led connection links and per-client encrypted profile lookup tokens are implemented in this branch. See [onboarding deployment and validation](supabase/functions/instagram-onboarding/README.md). This requires Instagram App settings/secrets, database update, Edge deployments and a real-account authorization test before rollout; it does not change Meta conversion feedback credentials.

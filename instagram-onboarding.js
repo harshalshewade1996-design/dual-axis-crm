@@ -30,9 +30,9 @@ async function igCheckAuthorization(){
       status.textContent=`Ready to connect @${session.instagram_username} (${session.instagram_account_id}) to ${phase3ClientName(orgId)}. Confirm this is the correct account.`;
       document.getElementById('igConfirmAccount').hidden=false;
     }else if(connection){
-      const expired=Date.parse(connection.expires_at)<=Date.now();
-      status.textContent=expired?'Authorization expired. Create a new connection link.':`Account authorized until ${new Date(connection.expires_at).toLocaleDateString('en-IN')}. Refresh authorization before it expires.`;
-      document.getElementById('igRefreshToken').hidden=expired;
+      const reconnect=Date.parse(connection.expires_at)<=Date.now()||connection.last_refresh_result==='reconnect_required';
+      status.textContent=reconnect?'Instagram authorization needs reconnecting. Create a new connection link.':`Account authorized until ${new Date(connection.expires_at).toLocaleDateString('en-IN')}. Automatic renewal is enabled.`+(connection.last_refresh_result==='retry'?' The last renewal failed; it will retry automatically.':'');
+      document.getElementById('igRefreshToken').hidden=reconnect;
     }else if(!data.configured){status.textContent='Instagram onboarding needs app configuration. Existing manual mappings still work.';}
     else if(session?.status==='awaiting'&&Date.parse(session.expires_at)>Date.now()){status.textContent='Waiting for the client to authorize Instagram. Check again after they finish.';}
     else{status.textContent='Create a new connection link for this client.';}

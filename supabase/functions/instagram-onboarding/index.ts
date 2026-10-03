@@ -39,20 +39,31 @@ async function callback(url: URL) {
   const session=await checked<any>(admin.from('instagram_oauth_sessions').update({status:'exchanging'})
     .eq('state_hash',await digest(state)).eq('status','awaiting').gt('expires_at',new Date().toISOString()).select('*').maybeSingle());
   if(!session)return page(false);
+  let stage='client_access';
   try {
     await activeOrg(session.org_id);
     const initiator=await checked<any>(admin.from('profiles').select('role').eq('user_id',session.initiated_by).maybeSingle());
     if(initiator?.role!=='admin'||url.searchParams.has('error'))throw new Error('Authorization cancelled');
     const code=url.searchParams.get('code');if(!code)throw new Error('Missing authorization code');
+    stage='short_token_exchange';
     const short=tokenResult(await metaJson('https://api.instagram.com/oauth/access_token',{method:'POST',body:new URLSearchParams({client_id:appId,client_secret:appSecret,grant_type:'authorization_code',redirect_uri:redirect,code})}));
-    const exchange=new URL('https://graph.instagram.com/access_token');
-    exchange.search=new URLSearchParams({grant_type:'ig_exchange_token',client_secret:appSecret,access_token:short.access_token}).toString();
-    const long=tokenResult(await metaJson(exchange));
+    stage='long_token_exchange';
+    const exchange=new URL(`https://graph.instagram.com/${version}/access_token`);
+    exchange.search=new URLSearchParams({grant_type:'ig_exchange_token',client_secret:appSecret,access_token:short.access_token,fields:'access_token,expires_in,token_type'}).toString();
+    const long=tokenResult(await metaJson(exchange,{method:'GET'}));
+    stage='professional_account_lookup';
     const profile=accountResult(await metaJson(`https://graph.instagram.com/${version}/me?fields=user_id,username`,{headers:{Authorization:`Bearer ${long.access_token}`}}));
+    stage='save_authorization';
     const saved=await checked<any>(admin.from('instagram_oauth_sessions').update({...profile,status:'authorized',token_expires_at:expiry(long.expires_in),token_ciphertext:await encryptToken(long.access_token,encryption,session.org_id)}).eq('id',session.id).eq('status','exchanging').gt('expires_at',new Date().toISOString()).select('id').maybeSingle());
     if(!saved)throw new Error('Authorization link was replaced or expired');
     return page(true);
-  } catch {
+  } catch (error) {
+    // Fixed stage labels only. Never log provider responses, URLs, codes or tokens.
+    const numeric=(key:string)=>{const value=(error as any)?.[key];return Number.isSafeInteger(value)?value:null;};
+    const reasons=['get_method_unsupported','app_secret_rejected','permission_rejected','token_expired','token_rejected','request_unsupported','unclassified'];
+    const reason=reasons.includes((error as any)?.provider_reason)?(error as any).provider_reason:'local_failure';
+    console.warn(JSON.stringify({event:'instagram_authorization_failed',stage,session_id:session.id,
+      http_status:numeric('http_status'),provider_code:numeric('provider_code'),provider_subcode:numeric('provider_subcode'),provider_reason:reason}));
     await checked(admin.from('instagram_oauth_sessions').update({status:'failed',token_ciphertext:null}).eq('id',session.id).eq('status','exchanging'));
     return page(false);
   }
@@ -69,7 +80,7 @@ Deno.serve(async req=>{
     await activeOrg(orgId);
     if(body.action==='status') {
       const session=await checked<any>(admin.from('instagram_oauth_sessions').select('id,status,expires_at,instagram_account_id,instagram_username').eq('org_id',orgId).order('created_at',{ascending:false}).limit(1).maybeSingle());
-      const connection=await checked<any>(admin.from('instagram_authorizations').select('instagram_account_id,expires_at,refreshed_at').eq('org_id',orgId).maybeSingle());
+      const connection=await checked<any>(admin.from('instagram_authorizations').select('instagram_account_id,expires_at,refreshed_at,last_refresh_result,last_refresh_attempt_at').eq('org_id',orgId).maybeSingle());
       let configured=true;try{ready();}catch{configured=false;}
       return json({session,connection,configured});
     }
@@ -99,12 +110,13 @@ Deno.serve(async req=>{
     if(body.action==='refresh') {
       const connection=await checked<any>(admin.from('instagram_authorizations').select('*').eq('org_id',orgId).maybeSingle());
       if(!connection||Date.parse(connection.expires_at)<=Date.now())throw new Error('Authorization expired. Reconnect Instagram.');
+      if(connection.refresh_lock_until&&Date.parse(connection.refresh_lock_until)>Date.now())throw new Error('Automatic renewal is running. Check again shortly.');
       if(Date.now()-Date.parse(connection.refreshed_at)<86400000)throw new Error('Authorization can be refreshed after 24 hours');
       const token=await decryptToken(connection.token_ciphertext,encryption,orgId);
-      const refresh=new URL('https://graph.instagram.com/refresh_access_token');
-      refresh.search=new URLSearchParams({grant_type:'ig_refresh_token',access_token:token}).toString();
+      const refresh=new URL(`https://graph.instagram.com/${version}/refresh_access_token`);
+      refresh.search=new URLSearchParams({grant_type:'ig_refresh_token',access_token:token,fields:'access_token,expires_in,token_type'}).toString();
       const result=tokenResult(await metaJson(refresh));
-      const saved=await checked<any>(admin.from('instagram_authorizations').update({token_ciphertext:await encryptToken(result.access_token,encryption,orgId),expires_at:expiry(result.expires_in),refreshed_at:new Date().toISOString()}).eq('org_id',orgId).eq('instagram_account_id',connection.instagram_account_id).eq('refreshed_at',connection.refreshed_at).select('org_id').maybeSingle());
+      const saved=await checked<any>(admin.from('instagram_authorizations').update({token_ciphertext:await encryptToken(result.access_token,encryption,orgId),expires_at:expiry(result.expires_in),refreshed_at:new Date().toISOString(),last_refresh_result:'renewed',refresh_retry_at:null,refresh_lock_id:null,refresh_lock_until:null}).eq('org_id',orgId).eq('instagram_account_id',connection.instagram_account_id).eq('refreshed_at',connection.refreshed_at).select('org_id').maybeSingle());
       if(!saved)throw new Error('Authorization changed. Check again.');
       return json({refreshed:true});
     }

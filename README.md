@@ -73,3 +73,7 @@ Validation: `node tests/booking-value.test.mjs` and `node tests/pagination.test.
 # Client Instagram authorization
 
 Admin-led connection links and per-client encrypted profile lookup tokens are implemented in this branch. See [onboarding deployment and validation](supabase/functions/instagram-onboarding/README.md). This requires Instagram App settings/secrets, database update, Edge deployments and a real-account authorization test before rollout; it does not change Meta conversion feedback credentials.
+
+## Automatic Instagram token renewal
+
+Hourly checks renew eligible enabled client authorizations after 30 days or within 14 days of expiry. Revoked tokens require reconnecting; transient failures retry the next day. The worker and schedule were deployed and validated with a real account on 2026-10-03. See [deployment, security and validation](supabase/functions/instagram-token-renewal/README.md).

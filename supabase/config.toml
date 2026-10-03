@@ -19,3 +19,7 @@ verify_jwt = true
 # GET receives the Instagram OAuth redirect; every POST validates getUser + admin role.
 [functions.instagram-onboarding]
 verify_jwt = false
+
+# Atomic single-use run ticket validated by the handler; no user/public access.
+[functions.instagram-token-renewal]
+verify_jwt = false

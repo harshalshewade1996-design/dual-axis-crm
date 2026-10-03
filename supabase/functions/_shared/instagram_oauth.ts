@@ -51,6 +51,20 @@ export async function metaJson(url: string | URL, options: RequestInit = {}) {
   const response = await fetch(url, {...options, signal:AbortSignal.timeout(10000)});
   const data = await response.json().catch(()=>null);
   // Provider errors may echo secrets. Return a controlled error; never log raw data/URL.
-  if (!response.ok || data?.error || !data) throw new Error('Instagram request failed. Check permissions or reconnect the account.');
+  if (!response.ok || data?.error || !data) {
+    const error = new Error('Instagram request failed. Check permissions or reconnect the account.');
+    const message=typeof data?.error?.message==='string'?data.error.message:'';
+    const reason=/Unsupported request.*method type.*get/i.test(message)?'get_method_unsupported':
+      /client.*secret|app.*secret/i.test(message)?'app_secret_rejected':
+      /permission|scope/i.test(message)?'permission_rejected':
+      /expired/i.test(message)?'token_expired':
+      /invalid.*token|token.*invalid/i.test(message)?'token_rejected':
+      /unsupported request/i.test(message)?'request_unsupported':'unclassified';
+    Object.assign(error, {http_status:response.status,
+      provider_reason:reason,
+      provider_code:Number.isSafeInteger(data?.error?.code)?data.error.code:null,
+      provider_subcode:Number.isSafeInteger(data?.error?.error_subcode)?data.error.error_subcode:null});
+    throw error;
+  }
   return data;
 }
